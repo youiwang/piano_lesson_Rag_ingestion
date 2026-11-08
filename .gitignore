@@ -1,0 +1,6 @@
+# 環境與快取
+.venv/
+__pycache__/
+
+# Streamlit 機密金鑰
+.streamlit/secrets.toml
