@@ -23,7 +23,7 @@ if 'keep_class_id' not in st.session_state:
 
 st.title("🎹 鋼琴課程筆記建檔系統")
 
-tab1, tab2, tab3 = st.tabs(["📝 新增筆記", "📖 筆記總覽", "✏️ 編輯歷史筆記"])
+tab1, tab2, tab3, tab4 = st.tabs(["📝 新增筆記", "📖 筆記總覽", "✏️ 編輯歷史筆記", "📤 批量匯入"])
 
 # ==========================================
 # 分頁 1：新增筆記 (Create)
@@ -31,29 +31,29 @@ tab1, tab2, tab3 = st.tabs(["📝 新增筆記", "📖 筆記總覽", "✏️ �
 with tab1:
     st.header("1. 上課資訊")
     col1, col2 = st.columns(2)
-    
+
     with col1:
         class_num = st.number_input("第幾堂課 (class_id)", min_value=1, step=1, value=st.session_state.keep_class_id)
-    
+
     existing_lesson = df_lessons[df_lessons['class_id'] == class_num]
-    
+
     if not existing_lesson.empty:
         # 【更新 3】明確提示修改 Metadata 的路徑
         st.info(f"ℹ️ 第 {class_num} 堂課已存在！系統已鎖定課程基本資訊，新曲目將直接附加至此堂課。\n\n"
                 f"💡 **欲編輯日期或錄音檔等 Metadata，請至「✏️ 編輯歷史筆記」分頁，或是直接使用 Google Sheet 編輯。**")
-        
+
         class_date_str = existing_lesson['date'].values[0]
         audio_file_str = str(existing_lesson['audio_filename'].values[0]) if pd.notna(existing_lesson['audio_filename'].values[0]) else ""
-        
+
         with col2:
             st.text_input("上課日期 (已鎖定)", value=class_date_str, disabled=True)
         audio_file = st.text_input("錄音檔名稱 (已鎖定)", value=audio_file_str, disabled=True)
-        class_date = class_date_str 
+        class_date = class_date_str
     else:
         with col2:
             class_date = st.date_input("上課日期")
         audio_file = st.text_input("錄音檔名稱", placeholder="例如: class69_chopin.m4a")
-        
+
     st.divider()
 
     st.header("2. 練習明細與重點")
@@ -76,7 +76,7 @@ with tab1:
         st.divider()
     elif book_choice != "-- 選擇既有書本 --":
         if book_choice == "(單曲/散譜)":
-            current_book_id = 0 
+            current_book_id = 0
         else:
             current_book_id = df_books.loc[df_books["book_title"] == book_choice, "book_id"].values[0]
 
@@ -98,7 +98,7 @@ with tab1:
         page_num = st.text_input("頁數", placeholder="例如: p.32")
     with col6:
         measures = st.text_input("練習小節", placeholder="例如: 1-15")
-        
+
     focus = st.text_area("練習重點")
 
     st.markdown("---")
@@ -109,7 +109,7 @@ with tab1:
             if book_choice == "-- 選擇既有書本 --" or piece_choice == "-- 選擇曲目 --":
                 st.error("請確認已選擇書本與曲目！")
                 st.stop()
-                
+
             # 1. 寫入 Books
             if book_choice == "➕ 新增其他書本...":
                 if not new_book_title:
@@ -150,7 +150,7 @@ with tab1:
             new_detail_record = pd.DataFrame([{"detail_id": new_detail_id, "class_id": class_num, "piece_id": current_piece_id, "page": page_num, "measures": measures, "focus": focus}])
             df_details = pd.concat([df_details, new_detail_record], ignore_index=True)
             conn.update(spreadsheet=sheet_url, worksheet="Lesson_Details", data=df_details)
-            
+
             if keep_same_class:
                 st.session_state.keep_class_id = class_num
             else:
@@ -158,10 +158,10 @@ with tab1:
 
             st.success(f"第 {class_num} 堂課筆記已成功寫入資料庫！")
             st.balloons()
-            st.cache_data.clear() 
+            st.cache_data.clear()
             time.sleep(1.5)
             st.rerun()
-            
+
         except Exception as e:
             st.error(f"寫入失敗：{e}")
 
@@ -178,7 +178,7 @@ with tab2:
                             .merge(df_pieces, on="piece_id", how="left") \
                             .merge(df_books, on="book_id", how="left")
         df_view = df_view.sort_values(by=["class_id", "detail_id"], ascending=[False, False])
-        
+
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             all_books_in_records = df_view["book_title"].dropna().unique().tolist()
@@ -189,7 +189,7 @@ with tab2:
                 filter_piece = st.selectbox("🎵 過濾曲目", ["顯示全部"] + pieces_in_filtered_book)
             else:
                 filter_piece = st.selectbox("🎵 過濾曲目", ["顯示全部"], disabled=True)
-                
+
         df_display = df_view.copy()
         if filter_book != "顯示全部":
             df_display = df_display[df_display["book_title"] == filter_book]
@@ -225,30 +225,30 @@ with tab3:
 
         available_classes = sorted(df_details['class_id'].dropna().unique().tolist(), reverse=True)
         selected_class = st.selectbox("選擇要修改的課堂", available_classes, format_func=lambda x: f"第 {int(x)} 堂課")
-        
+
         if selected_class:
             st.divider()
-            
+
             # 【更新 2：新增修改課程 Metadata 的區塊】
             st.subheader("🗓️ 編輯課程基本資訊 (Metadata)")
             class_meta = df_lessons[df_lessons['class_id'] == selected_class]
-            
+
             if not class_meta.empty:
                 old_date = class_meta['date'].values[0]
                 old_audio = class_meta['audio_filename'].values[0]
-                
+
                 col_m1, col_m2 = st.columns(2)
                 with col_m1:
                     edit_date = st.text_input("修改上課日期 (格式: YYYY-MM-DD)", value=safe_str(old_date))
                 with col_m2:
                     edit_audio = st.text_input("修改錄音檔名稱", value=safe_str(old_audio))
-                    
+
                 if st.button("💾 更新課程資訊", key="btn_update_meta"):
                     try:
                         idx_lesson = df_lessons[df_lessons['class_id'] == selected_class].index[0]
                         df_lessons.loc[idx_lesson, 'date'] = edit_date
                         df_lessons.loc[idx_lesson, 'audio_filename'] = edit_audio
-                        
+
                         conn.update(spreadsheet=sheet_url, worksheet="Lessons", data=df_lessons)
                         st.success("課程基本資訊更新成功！")
                         st.cache_data.clear()
@@ -256,52 +256,224 @@ with tab3:
                         st.rerun()
                     except Exception as e:
                         st.error(f"更新課程資訊失敗：{e}")
-            
+
             st.divider()
-            
+
             # 編輯該堂課曲目明細
             st.subheader("🎵 編輯曲目筆記明細")
             class_details = df_details[df_details['class_id'] == selected_class]
             display_options = []
-            detail_mapping = {} 
-            
+            detail_mapping = {}
+
             for idx, row in class_details.iterrows():
                 d_id = row['detail_id']
                 p_id = row['piece_id']
-                
+
                 p_row = df_pieces[df_pieces['piece_id'] == p_id]
                 p_name = p_row['piece_name'].values[0] if not p_row.empty else "未知曲目"
-                
+
                 display_str = f"{p_name}"
                 display_options.append(display_str)
                 detail_mapping[display_str] = d_id
-                
+
             selected_piece_str = st.selectbox("選擇該堂課的曲目進行編輯", display_options)
-            
+
             if selected_piece_str:
                 target_detail_id = detail_mapping[selected_piece_str]
                 current_record = class_details[class_details['detail_id'] == target_detail_id].iloc[0]
-                
+
                 st.markdown("##### ✏️ 編輯內容")
                 col7, col8 = st.columns(2)
                 with col7:
                     edit_page = st.text_input("修改頁數", value=safe_str(current_record.get('page', '')))
                 with col8:
                     edit_measures = st.text_input("修改小節", value=safe_str(current_record.get('measures', '')))
-                    
+
                 edit_focus = st.text_area("修改重點", value=safe_str(current_record.get('focus', '')), height=150)
-                
-                if st.button("💾 更新此筆記", type="primary", key="btn_update_detail"):
-                    try:
-                        idx = df_details[df_details['detail_id'] == target_detail_id].index[0]
-                        df_details.loc[idx, 'page'] = edit_page
-                        df_details.loc[idx, 'measures'] = edit_measures
-                        df_details.loc[idx, 'focus'] = edit_focus
-                        conn.update(spreadsheet=sheet_url, worksheet="Lesson_Details", data=df_details)
-                        
-                        st.success("舊筆記明細更新成功！")
-                        st.cache_data.clear()
-                        time.sleep(1.5)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"更新筆記失敗：{e}")
+
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("💾 更新此筆記", type="primary", key="btn_update_detail"):
+                        try:
+                            idx = df_details[df_details['detail_id'] == target_detail_id].index[0]
+                            df_details.loc[idx, 'page'] = edit_page
+                            df_details.loc[idx, 'measures'] = edit_measures
+                            df_details.loc[idx, 'focus'] = edit_focus
+                            conn.update(spreadsheet=sheet_url, worksheet="Lesson_Details", data=df_details)
+
+                            st.success("舊筆記明細更新成功！")
+                            st.cache_data.clear()
+                            time.sleep(1.5)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"更新筆記失敗：{e}")
+
+                with col_btn2:
+                    if st.button("🗑️ 刪除此筆記", type="secondary", key="btn_delete_detail"):
+                        try:
+                            df_details = df_details[df_details['detail_id'] != target_detail_id]
+                            conn.update(spreadsheet=sheet_url, worksheet="Lesson_Details", data=df_details)
+                            st.success("筆記已刪除！")
+                            st.cache_data.clear()
+                            time.sleep(1.5)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"刪除筆記失敗：{e}")
+
+# ==========================================
+# 分頁 4：批量匯入 (Bulk Import)
+# ==========================================
+with tab4:
+    st.header("📤 批量匯入筆記")
+    st.markdown("""
+    ### 使用說明
+    1. **準備 CSV 或 Excel 檔案**，包含以下欄位（至少需要部分必填欄位）：
+       - `book_title` ⭐ 必填：書本名稱
+       - `piece_name` ⭐ 必填：曲目名稱
+       - `class_id` ⭐ 必填：課堂編號
+       - `date` ⭐ 必填：上課日期 (格式: YYYY-MM-DD)
+       - `page`：頁數
+       - `measures`：練習小節
+       - `focus`：練習重點
+       - `audio_filename`：錄音檔名
+
+    2. 下方上傳檔案
+    3. 系統會自動檢查衝突並建議修正
+    4. 確認後一次性匯入所有資料
+
+    **選填** - 如需新增新書本，可添加額外欄位：
+    - `original_title`, `author_editor`, `publisher`, `series`, `publish_date`, `description`, `isbn`
+    """)
+
+    st.divider()
+
+    uploaded_file = st.file_uploader("上傳 CSV 或 Excel 檔案", type=["csv", "xlsx", "xls"])
+
+    if uploaded_file:
+        try:
+            if uploaded_file.name.endswith('.csv'):
+                df_import = pd.read_csv(uploaded_file)
+            else:
+                df_import = pd.read_excel(uploaded_file)
+
+            st.success(f"已讀取 {len(df_import)} 筆記錄")
+
+            st.write("**預覽資料：**")
+            st.dataframe(df_import, use_container_width=True)
+
+            required_cols = ['book_title', 'piece_name', 'class_id', 'date']
+            missing_cols = [col for col in required_cols if col not in df_import.columns]
+
+            if missing_cols:
+                st.error(f"缺少必填欄位：{', '.join(missing_cols)}")
+                st.stop()
+
+            st.divider()
+            st.subheader("資料驗證結果")
+
+            conflicts = []
+
+            for idx, row in df_import.iterrows():
+                class_id = int(row['class_id'])
+                piece_name = str(row['piece_name']).strip()
+
+                piece_in_class = df_details[
+                    (df_details['class_id'] == class_id) &
+                    (df_details['piece_id'].isin(
+                        df_pieces[df_pieces['piece_name'] == piece_name]['piece_id'].tolist()
+                    ))
+                ]
+                if not piece_in_class.empty:
+                    conflicts.append(f"第 {class_id} 堂課已有《{piece_name}》的紀錄")
+
+            if conflicts:
+                st.warning("**發現以下衝突：**")
+                for conflict in conflicts:
+                    st.write(conflict)
+                st.info("建議：移除重複記錄或修改 class_id")
+                proceed = st.checkbox("我已檢查衝突，仍要繼續匯入")
+                if not proceed:
+                    st.stop()
+
+            st.divider()
+            st.subheader("開始匯入")
+
+            if st.button("確認匯入", type="primary"):
+                try:
+                    imported_count = 0
+
+                    for idx, row in df_import.iterrows():
+                        book_title = str(row['book_title']).strip()
+                        piece_name = str(row['piece_name']).strip()
+                        class_id = int(row['class_id'])
+
+                        existing_book = df_books[df_books['book_title'] == book_title]
+                        if existing_book.empty:
+                            book_id = int(df_books['book_id'].max()) + 1 if not df_books.empty and pd.notna(df_books['book_id'].max()) else 1
+                            new_book_data = {
+                                'book_id': book_id,
+                                'book_title': book_title,
+                                'original_title': row.get('original_title', ''),
+                                'author_editor': row.get('author_editor', ''),
+                                'publisher': row.get('publisher', ''),
+                                'series': row.get('series', ''),
+                                'publish_date': row.get('publish_date', ''),
+                                'description': row.get('description', ''),
+                                'isbn': row.get('isbn', '')
+                            }
+                            df_books = pd.concat([df_books, pd.DataFrame([new_book_data])], ignore_index=True)
+                        else:
+                            book_id = existing_book['book_id'].values[0]
+
+                        existing_piece = df_pieces[
+                            (df_pieces['book_id'] == book_id) &
+                            (df_pieces['piece_name'] == piece_name)
+                        ]
+                        if existing_piece.empty:
+                            piece_id = int(df_pieces['piece_id'].max()) + 1 if not df_pieces.empty and pd.notna(df_pieces['piece_id'].max()) else 1
+                            new_piece_data = {
+                                'piece_id': piece_id,
+                                'book_id': book_id,
+                                'piece_name': piece_name
+                            }
+                            df_pieces = pd.concat([df_pieces, pd.DataFrame([new_piece_data])], ignore_index=True)
+                        else:
+                            piece_id = existing_piece['piece_id'].values[0]
+
+                        existing_lesson = df_lessons[df_lessons['class_id'] == class_id]
+                        if existing_lesson.empty:
+                            new_lesson_data = {
+                                'class_id': class_id,
+                                'date': str(row['date']),
+                                'audio_filename': row.get('audio_filename', '')
+                            }
+                            df_lessons = pd.concat([df_lessons, pd.DataFrame([new_lesson_data])], ignore_index=True)
+
+                        detail_id = int(df_details['detail_id'].max()) + 1 if not df_details.empty and pd.notna(df_details['detail_id'].max()) else 1
+                        new_detail_data = {
+                            'detail_id': detail_id,
+                            'class_id': class_id,
+                            'piece_id': piece_id,
+                            'page': row.get('page', ''),
+                            'measures': row.get('measures', ''),
+                            'focus': row.get('focus', '')
+                        }
+                        df_details = pd.concat([df_details, pd.DataFrame([new_detail_data])], ignore_index=True)
+                        imported_count += 1
+
+                    conn.update(spreadsheet=sheet_url, worksheet="Books", data=df_books)
+                    conn.update(spreadsheet=sheet_url, worksheet="Pieces", data=df_pieces)
+                    conn.update(spreadsheet=sheet_url, worksheet="Lessons", data=df_lessons)
+                    conn.update(spreadsheet=sheet_url, worksheet="Lesson_Details", data=df_details)
+
+                    st.success(f"成功匯入 {imported_count} 筆記錄！")
+                    st.balloons()
+                    st.cache_data.clear()
+                    time.sleep(2)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"匯入失敗：{e}")
+                    import traceback
+                    st.error(traceback.format_exc())
+        except Exception as e:
+            st.error(f"檔案處理失敗：{e}")

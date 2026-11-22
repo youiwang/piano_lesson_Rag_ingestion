@@ -29,6 +29,7 @@ It supports:
 
 ## Features
 
+### Core Features
 - Add a new lesson with `class_id`, date, and recording filename
 - Create a book record inline when needed
 - Create a new piece inside a book or select an existing one
@@ -37,11 +38,21 @@ It supports:
 - View a filtered historical overview of all lesson records
 - Update lesson metadata and existing lesson details directly in the app
 
+### New Features (Recently Added)
+- **Delete existing notes**: Remove unwanted lesson records with a single click from the edit tab
+- **Bulk import**: Upload CSV or Excel files to import multiple lesson records at once
+  - Automatically creates new books, pieces, and lesson records
+  - Detects duplicate records and warns before importing
+  - Works with Google Sheets even when the sheet is protected
+  - Supported file formats: `.csv`, `.xlsx`, `.xls`
+
 ## Tech stack
 
 - Python 3.13+
 - Streamlit
 - pandas
+- openpyxl (Excel `.xlsx` import engine)
+- xlrd (Excel `.xls` import engine)
 - `st-gsheets-connection`
 
 ## Installation
@@ -50,6 +61,12 @@ Using `uv` is recommended:
 
 ```bash
 uv sync
+```
+
+To ensure you reproduce the exact locked environment from this repository:
+
+```bash
+uv sync --frozen
 ```
 
 ## Run the app
@@ -127,7 +144,54 @@ Typical columns:
 5. Fill in page number, measures, and the lesson focus notes.
 6. Click `💾 儲存新筆記` to save the record.
 7. Use the overview tab to browse historical notes and apply filters.
-8. Use the edit tab to update lesson metadata or a specific piece note.
+8. Use the edit tab to update lesson metadata, a specific piece note, or delete a record.
+9. Use the bulk import tab to upload CSV/Excel files with multiple lesson records.
+
+## Bulk Import Guide
+
+The bulk import feature allows you to import multiple lesson records at once from a CSV or Excel file.
+
+### Required columns:
+- `book_title` — name of the book
+- `piece_name` — name of the piece
+- `class_id` — lesson/class ID (number)
+- `date` — lesson date in YYYY-MM-DD format
+
+### Optional columns:
+- `page` — page number
+- `measures` — measure range or description
+- `focus` — practice focus notes
+- `audio_filename` — recording filename
+- `original_title` — original piece title
+- Other metadata columns
+
+### How it works:
+1. Prepare a CSV or Excel file with the required columns
+2. Upload the file in the **📤 批量匯入** tab
+3. The system will:
+   - Automatically create new books and pieces if they don't exist
+   - Detect if a piece already exists in a lesson and warn you
+   - Upload all records to the Google Sheet in one batch
+
+A sample template file `sample_bulk_import.csv` is provided as a reference.
+
+## Dependency management (uv)
+
+When you add or update dependencies, use `uv` so both dependency files stay in sync:
+
+```bash
+uv add <package-name>
+```
+
+This updates:
+- [pyproject.toml](C:/Users/stust/Desktop/piano_lesson_rag_ingestion/pyproject.toml)
+- [uv.lock](C:/Users/stust/Desktop/piano_lesson_rag_ingestion/uv.lock)
+
+For this project, Excel bulk import support requires:
+- `openpyxl` for `.xlsx`
+- `xlrd` for `.xls`
+
+
 
 ## Notes
 
