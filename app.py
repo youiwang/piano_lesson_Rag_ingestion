@@ -14,6 +14,8 @@ df_pieces = conn.read(spreadsheet=sheet_url, worksheet="Pieces").dropna(how='all
 df_lessons = conn.read(spreadsheet=sheet_url, worksheet="Lessons").dropna(how='all')
 df_details = conn.read(spreadsheet=sheet_url, worksheet="Lesson_Details").dropna(how='all')
 
+if "product_id" not in df_books.columns:
+    df_books["product_id"] = ""
 if "composer" not in df_pieces.columns:
     df_pieces["composer"] = ""
 
@@ -75,6 +77,7 @@ with tab1:
             new_series = st.text_input("系列名稱")
             new_publish_date = st.text_input("出版日期")
         new_description = st.text_area("書籍解說 / 簡介")
+        new_product_id = st.text_input("商品編號 (選填)")
         new_isbn = st.text_input("ISBN (選填)")
         st.divider()
     elif book_choice != "-- 選擇既有書本 --":
@@ -121,7 +124,7 @@ with tab1:
                     st.error("請填寫新書本的「中文書名」！")
                     st.stop()
                 current_book_id = int(df_books["book_id"].max()) + 1 if not df_books.empty and pd.notna(df_books["book_id"].max()) else 1
-                new_book_record = pd.DataFrame([{"book_id": current_book_id, "book_title": new_book_title, "original_title": new_original_title, "author_editor": new_author, "publisher": new_publisher, "series": new_series, "publish_date": new_publish_date, "description": new_description, "isbn": new_isbn}])
+                new_book_record = pd.DataFrame([{"book_id": current_book_id, "book_title": new_book_title, "original_title": new_original_title, "author_editor": new_author, "publisher": new_publisher, "series": new_series, "publish_date": new_publish_date, "description": new_description, "product_id": new_product_id, "isbn": new_isbn}])
                 df_books = pd.concat([df_books, new_book_record], ignore_index=True)
                 conn.update(spreadsheet=sheet_url, worksheet="Books", data=df_books)
 
@@ -369,7 +372,7 @@ with tab4:
     4. 確認後一次性匯入所有資料
 
     **選填** - 如需新增新書本，可添加額外欄位：
-    - `original_title`, `author_editor`, `publisher`, `series`, `publish_date`, `description`, `isbn`, `composer`
+    - `original_title`, `author_editor`, `publisher`, `series`, `publish_date`, `description`, `product_id`, `isbn`, `composer`
     """)
 
     st.divider()
@@ -449,6 +452,7 @@ with tab4:
                                 'series': row.get('series', ''),
                                 'publish_date': row.get('publish_date', ''),
                                 'description': row.get('description', ''),
+                                'product_id': row.get('product_id', ''),
                                 'isbn': row.get('isbn', '')
                             }
                             df_books = pd.concat([df_books, pd.DataFrame([new_book_data])], ignore_index=True)

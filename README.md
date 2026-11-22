@@ -106,6 +106,7 @@ Typical columns:
 - `series`
 - `publish_date`
 - `description`
+- `product_id`
 - `isbn`
 
 ### Pieces
@@ -165,6 +166,7 @@ The bulk import feature allows you to import multiple lesson records at once fro
 - `audio_filename` — recording filename
 - `composer` — piece-level composer/author
 - `original_title` — original piece title
+- `product_id` — publisher product code (商品編號)
 - Other metadata columns
 
 ### How it works:
