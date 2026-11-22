@@ -14,6 +14,9 @@ df_pieces = conn.read(spreadsheet=sheet_url, worksheet="Pieces").dropna(how='all
 df_lessons = conn.read(spreadsheet=sheet_url, worksheet="Lessons").dropna(how='all')
 df_details = conn.read(spreadsheet=sheet_url, worksheet="Lesson_Details").dropna(how='all')
 
+if "composer" not in df_pieces.columns:
+    df_pieces["composer"] = ""
+
 existing_books = df_books["book_title"].dropna().tolist() if not df_books.empty else []
 if "(單曲/散譜)" not in existing_books:
     existing_books.insert(0, "(單曲/散譜)")
@@ -88,8 +91,10 @@ with tab1:
     piece_choice = st.selectbox("選擇或新增曲目", ["-- 選擇曲目 --"] + existing_pieces_in_book + ["➕ 新增曲目..."])
 
     piece_name = None
+    piece_composer = ""
     if piece_choice == "➕ 新增曲目...":
         piece_name = st.text_input("輸入新曲目名稱 / 標號", placeholder="例如: No. 20 in C-sharp minor")
+        piece_composer = st.text_input("輸入作曲者 / 作者", placeholder="例如: Frédéric Chopin")
     elif piece_choice != "-- 選擇曲目 --":
         piece_name = piece_choice
 
@@ -127,7 +132,12 @@ with tab1:
                     st.error("請填寫「新曲目名稱」！")
                     st.stop()
                 current_piece_id = int(df_pieces["piece_id"].max()) + 1 if not df_pieces.empty and pd.notna(df_pieces["piece_id"].max()) else 1
-                new_piece_record = pd.DataFrame([{"piece_id": current_piece_id, "book_id": current_book_id, "piece_name": piece_name}])
+                new_piece_record = pd.DataFrame([{
+                    "piece_id": current_piece_id,
+                    "book_id": current_book_id,
+                    "piece_name": piece_name,
+                    "composer": piece_composer.strip()
+                }])
                 df_pieces = pd.concat([df_pieces, new_piece_record], ignore_index=True)
                 conn.update(spreadsheet=sheet_url, worksheet="Pieces", data=df_pieces)
             else:
@@ -177,6 +187,13 @@ with tab2:
         df_view = df_details.merge(df_lessons, on="class_id", how="left") \
                             .merge(df_pieces, on="piece_id", how="left") \
                             .merge(df_books, on="book_id", how="left")
+        if "composer" not in df_view.columns:
+            df_view["composer"] = ""
+        if "author_editor" not in df_view.columns:
+            df_view["author_editor"] = ""
+        composer_series = df_view["composer"].fillna("").astype(str).str.strip()
+        book_author_series = df_view["author_editor"].fillna("").astype(str).str.strip()
+        df_view["composer_display"] = composer_series.where(composer_series != "", book_author_series)
         df_view = df_view.sort_values(by=["class_id", "detail_id"], ascending=[False, False])
 
         col_f1, col_f2 = st.columns(2)
@@ -201,6 +218,7 @@ with tab2:
             'date': '上課日期',
             'book_title': '書本來源',
             'piece_name': '曲目',
+            'composer_display': '作曲者/作者',
             'page': '頁數',
             'measures': '小節',
             'focus': '練習重點',
@@ -281,6 +299,9 @@ with tab3:
             if selected_piece_str:
                 target_detail_id = detail_mapping[selected_piece_str]
                 current_record = class_details[class_details['detail_id'] == target_detail_id].iloc[0]
+                target_piece_id = current_record["piece_id"]
+                piece_record = df_pieces[df_pieces["piece_id"] == target_piece_id]
+                old_composer = piece_record["composer"].values[0] if not piece_record.empty and "composer" in piece_record.columns else ""
 
                 st.markdown("##### ✏️ 編輯內容")
                 col7, col8 = st.columns(2)
@@ -288,6 +309,7 @@ with tab3:
                     edit_page = st.text_input("修改頁數", value=safe_str(current_record.get('page', '')))
                 with col8:
                     edit_measures = st.text_input("修改小節", value=safe_str(current_record.get('measures', '')))
+                edit_composer = st.text_input("修改作曲者 / 作者", value=safe_str(old_composer))
 
                 edit_focus = st.text_area("修改重點", value=safe_str(current_record.get('focus', '')), height=150)
 
@@ -299,7 +321,11 @@ with tab3:
                             df_details.loc[idx, 'page'] = edit_page
                             df_details.loc[idx, 'measures'] = edit_measures
                             df_details.loc[idx, 'focus'] = edit_focus
+                            if not piece_record.empty:
+                                piece_idx = piece_record.index[0]
+                                df_pieces.loc[piece_idx, 'composer'] = edit_composer.strip()
                             conn.update(spreadsheet=sheet_url, worksheet="Lesson_Details", data=df_details)
+                            conn.update(spreadsheet=sheet_url, worksheet="Pieces", data=df_pieces)
 
                             st.success("舊筆記明細更新成功！")
                             st.cache_data.clear()
@@ -336,13 +362,14 @@ with tab4:
        - `measures`：練習小節
        - `focus`：練習重點
        - `audio_filename`：錄音檔名
+       - `composer`：作曲者 / 作者（選填，建議填）
 
     2. 下方上傳檔案
     3. 系統會自動檢查衝突並建議修正
     4. 確認後一次性匯入所有資料
 
     **選填** - 如需新增新書本，可添加額外欄位：
-    - `original_title`, `author_editor`, `publisher`, `series`, `publish_date`, `description`, `isbn`
+    - `original_title`, `author_editor`, `publisher`, `series`, `publish_date`, `description`, `isbn`, `composer`
     """)
 
     st.divider()
@@ -406,6 +433,9 @@ with tab4:
                         book_title = str(row['book_title']).strip()
                         piece_name = str(row['piece_name']).strip()
                         class_id = int(row['class_id'])
+                        composer = ""
+                        if 'composer' in df_import.columns and pd.notna(row.get('composer')):
+                            composer = str(row.get('composer')).strip()
 
                         existing_book = df_books[df_books['book_title'] == book_title]
                         if existing_book.empty:
@@ -434,11 +464,16 @@ with tab4:
                             new_piece_data = {
                                 'piece_id': piece_id,
                                 'book_id': book_id,
-                                'piece_name': piece_name
+                                'piece_name': piece_name,
+                                'composer': composer
                             }
                             df_pieces = pd.concat([df_pieces, pd.DataFrame([new_piece_data])], ignore_index=True)
                         else:
                             piece_id = existing_piece['piece_id'].values[0]
+                            existing_piece_composer = existing_piece['composer'].values[0] if 'composer' in existing_piece.columns else ""
+                            if composer and not str(existing_piece_composer).strip():
+                                piece_idx = existing_piece.index[0]
+                                df_pieces.loc[piece_idx, 'composer'] = composer
 
                         existing_lesson = df_lessons[df_lessons['class_id'] == class_id]
                         if existing_lesson.empty:

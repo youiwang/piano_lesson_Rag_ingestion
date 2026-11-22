@@ -115,6 +115,7 @@ Typical columns:
 - `piece_id`
 - `book_id`
 - `piece_name`
+- `composer`
 
 ### Lessons
 
@@ -162,6 +163,7 @@ The bulk import feature allows you to import multiple lesson records at once fro
 - `measures` — measure range or description
 - `focus` — practice focus notes
 - `audio_filename` — recording filename
+- `composer` — piece-level composer/author
 - `original_title` — original piece title
 - Other metadata columns
 
