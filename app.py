@@ -14,6 +14,20 @@ df_pieces = conn.read(spreadsheet=sheet_url, worksheet="Pieces").dropna(how='all
 df_lessons = conn.read(spreadsheet=sheet_url, worksheet="Lessons").dropna(how='all')
 df_details = conn.read(spreadsheet=sheet_url, worksheet="Lesson_Details").dropna(how='all')
 
+def ensure_text_columns(df, columns):
+    for column in columns:
+        if column in df.columns:
+            df[column] = df[column].astype("object")
+    return df
+
+df_books = ensure_text_columns(df_books, [
+    "book_title", "original_title", "author_editor", "publisher", "series",
+    "publish_date", "description", "product_id", "isbn"
+])
+df_pieces = ensure_text_columns(df_pieces, ["piece_name", "composer"])
+df_lessons = ensure_text_columns(df_lessons, ["date", "audio_filename"])
+df_details = ensure_text_columns(df_details, ["page", "measures", "focus"])
+
 if "product_id" not in df_books.columns:
     df_books["product_id"] = ""
 if "composer" not in df_pieces.columns:
