@@ -400,17 +400,26 @@ with tab4:
             else:
                 df_import = pd.read_excel(uploaded_file)
 
-            st.success(f"已讀取 {len(df_import)} 筆記錄")
-
-            st.write("**預覽資料：**")
-            st.dataframe(df_import, use_container_width=True)
-
+            # 移除完全空白的列
+            df_import = df_import.dropna(how='all')
+            
             required_cols = ['book_title', 'piece_name', 'class_id', 'date']
             missing_cols = [col for col in required_cols if col not in df_import.columns]
 
             if missing_cols:
                 st.error(f"缺少必填欄位：{', '.join(missing_cols)}")
                 st.stop()
+
+            # 填補空白的書本名稱為預設值
+            df_import['book_title'] = df_import['book_title'].fillna('(單曲/散譜)').replace('', '(單曲/散譜)')
+
+            # 移除 class_id, piece_name, date 有缺失的資料列
+            df_import = df_import.dropna(subset=['class_id', 'piece_name', 'date'])
+
+            st.success(f"已讀取 {len(df_import)} 筆記錄")
+
+            st.write("**預覽資料：**")
+            st.dataframe(df_import, use_container_width=True)
 
             st.divider()
             st.subheader("資料驗證結果")
@@ -498,7 +507,7 @@ with tab4:
                             new_lesson_data = {
                                 'class_id': class_id,
                                 'date': str(row['date']),
-                                'audio_filename': row.get('audio_filename', '')
+                                'audio_filename': str(row['audio_filename']) if 'audio_filename' in row and pd.notna(row['audio_filename']) else ''
                             }
                             df_lessons = pd.concat([df_lessons, pd.DataFrame([new_lesson_data])], ignore_index=True)
 
@@ -507,9 +516,9 @@ with tab4:
                             'detail_id': detail_id,
                             'class_id': class_id,
                             'piece_id': piece_id,
-                            'page': row.get('page', ''),
-                            'measures': row.get('measures', ''),
-                            'focus': row.get('focus', '')
+                            'page': str(row['page']) if 'page' in row and pd.notna(row['page']) else '',
+                            'measures': str(row['measures']) if 'measures' in row and pd.notna(row['measures']) else '',
+                            'focus': str(row['focus']) if 'focus' in row and pd.notna(row['focus']) else ''
                         }
                         df_details = pd.concat([df_details, pd.DataFrame([new_detail_data])], ignore_index=True)
                         imported_count += 1
